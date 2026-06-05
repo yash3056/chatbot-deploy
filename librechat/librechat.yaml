@@ -1,0 +1,16 @@
+version: 1.1.5
+cache: true
+
+endpoints:
+  custom:
+    - name: "Gemma 4 Local"
+      apiKey: "dummy"                              # llama.cpp needs no real key
+      baseURL: "http://host.docker.internal:8099/v1"
+      models:
+        default: ["gemma-4-12b-it-Q4_K_M.gguf"]
+        fetch: false                               # don't try to auto-fetch model list
+      titleConvo: true
+      titleModel: "gemma-4-12b-it-Q4_K_M.gguf"
+      modelDisplayLabel: "Gemma 4 12B (Local)"
+      summarize: false
+      forcePrompt: false
