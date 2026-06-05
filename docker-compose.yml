@@ -29,9 +29,12 @@ services:
     ports:
       - "3080:3080"
     depends_on:
-      - mongodb
-      - meilisearch
-      - office-mcp
+      mongodb:
+        condition: service_started
+      meilisearch:
+        condition: service_started
+      office-mcp:
+        condition: service_healthy
     env_file:
       - ./librechat/.env
     volumes:
@@ -47,6 +50,8 @@ services:
     build: ./office-mcp
     container_name: office-mcp
     restart: unless-stopped
+    ports:
+      - "8097:8097" # SSE endpoint — reachable at http://localhost:8097/sse from host
     volumes:
       - ./office-mcp:/app
       - ./office-mcp/data:/app/data
@@ -54,6 +59,12 @@ services:
       - MCP_BASE_DIR=/app/data
       - MCP_SQLITE_PATH=/app/data/office.db
       - MCP_CHROMA_PATH=/app/data/chroma
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost', 8097)); s.close()"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
 
   # ── MongoDB ─────────────────────────────────────────────────────────────────
   mongodb:
@@ -68,8 +79,9 @@ services:
     image: getmeili/meilisearch:v1.7
     container_name: librechat-meilisearch
     restart: unless-stopped
+    env_file:
+      - ./librechat/.env          # contains MEILI_MASTER_KEY (and other vars, ignored by meili)
     environment:
-      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
       - MEILI_NO_ANALYTICS=true
     volumes:
       - meilisearch_data:/meili_data

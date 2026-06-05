@@ -14,3 +14,17 @@ endpoints:
       modelDisplayLabel: "Gemma 4 12B (Local)"
       summarize: false
       forcePrompt: false
+
+mcpServers:
+  office-tools:
+    # Both containers share the Docker bridge network, so use the service name directly.
+    # The SSE endpoint is http://office-mcp:8080/sse inside the Docker network.
+    type: sse
+    url: "http://office-mcp:8097/sse"
+    requiresOAuth: false   # no OAuth, plain HTTP
+
+mcpSettings:
+  # LibreChat blocks internal/private hostnames by default (security feature).
+  # Explicitly allow the office-mcp Docker service name so LibreChat can reach it.
+  allowedAddresses:
+    - "office-mcp:8097"

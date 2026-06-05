@@ -5,7 +5,7 @@ docker compose up -d
 
 restart the docker 
 ```
-docker compose down && docker compose up -d
+docker compose down && docker compose up -d --build
 ```
 
 ## Setup mcp server
