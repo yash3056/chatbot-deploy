@@ -4,11 +4,12 @@ from typing import List
 
 import requests
 from bs4 import BeautifulSoup
-
-# pip install chromadb
 import chromadb
 
 from mcp.server.fastmcp import FastMCP
+from starlette.requests import Request
+from starlette.responses import HTMLResponse
+from starlette.routing import Route
 
 # --- config ---
 BASE_DIR = Path(os.getenv("MCP_BASE_DIR", "./data")).resolve()
@@ -147,7 +148,75 @@ def browser_screenshot(url: str) -> str:
         browser.close()
     return str(out.relative_to(BASE_DIR))
 
+# --- /help endpoint — lists all registered MCP tools ---
+def help_handler(request: Request) -> HTMLResponse:
+    # Access tool registry directly from the internal tool manager (sync, no MCP protocol needed)
+    raw_tools = list(mcp._tool_manager._tools.values())
+    rows = ""
+    for t in raw_tools:
+        schema = getattr(t, "parameters", None) or {}
+        props = schema.get("properties", {})
+        required = set(schema.get("required", []))
+        params = " ".join(
+            f'<code class="param{" req" if k in required else ""}">{k}</code>'
+            for k in props
+        )
+        rows += (
+            f"<tr>"
+            f"<td><b>{t.name}</b></td>"
+            f"<td>{t.description or '<em>—</em>'}</td>"
+            f"<td>{params or '<em>none</em>'}</td>"
+            f"</tr>\n"
+        )
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Office MCP — Tools</title>
+  <style>
+    *{{box-sizing:border-box;margin:0;padding:0}}
+    body{{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#c9d1d9;padding:2rem}}
+    h1{{color:#58a6ff;margin-bottom:.25rem;font-size:1.6rem}}
+    p.sub{{color:#8b949e;margin-bottom:1.5rem;font-size:.9rem}}
+    table{{width:100%;border-collapse:collapse;font-size:.9rem}}
+    th{{background:#161b22;color:#8b949e;text-transform:uppercase;font-size:.75rem;
+        letter-spacing:.05em;padding:.6rem 1rem;text-align:left;border-bottom:1px solid #30363d}}
+    td{{padding:.65rem 1rem;border-bottom:1px solid #21262d;vertical-align:top}}
+    tr:hover td{{background:#161b22}}
+    b{{color:#e6edf3}}
+    code.param{{background:#21262d;padding:.15em .4em;border-radius:4px;font-size:.82em;
+               color:#79c0ff;margin-right:.25em}}
+    code.param.req{{color:#ffa657}}
+    em{{color:#6e7681}}
+    .badge{{display:inline-block;background:#388bfd22;color:#58a6ff;border:1px solid #1f6feb;
+            border-radius:12px;padding:.1rem .6rem;font-size:.75rem;margin-left:.5rem}}
+  </style>
+</head>
+<body>
+  <h1>Office MCP Tools <span class="badge">{len(raw_tools)} tools</span></h1>
+  <p class="sub">Parameters in <code style="color:#ffa657;background:#21262d;padding:.1em .3em;border-radius:3px">orange</code> are required.</p>
+  <table>
+    <thead><tr><th>Tool</th><th>Description</th><th>Parameters</th></tr></thead>
+    <tbody>{rows}</tbody>
+  </table>
+</body>
+</html>"""
+    return HTMLResponse(html)
+
+
 if __name__ == "__main__":
-    # SSE transport: exposes an HTTP endpoint so LibreChat (in another container)
-    # can connect via http://office-mcp:8097/sse over the Docker bridge network.
-    mcp.run(transport="sse")
+    import uvicorn
+    from starlette.applications import Starlette
+    from starlette.routing import Mount
+
+    # mcp.sse_app() returns the internal Starlette app used by mcp.run(transport="sse").
+    # We wrap it with our own Starlette app that adds /help before the catch-all mount.
+    sse_starlette = mcp.sse_app()
+
+    combined = Starlette(routes=[
+        Route("/help", endpoint=help_handler),
+        Mount("/", app=sse_starlette),
+    ])
+
+    uvicorn.run(combined, host="0.0.0.0", port=8097, log_level="info")
