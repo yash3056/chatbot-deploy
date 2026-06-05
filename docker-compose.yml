@@ -1,27 +1,81 @@
+name: librechat # keeps volume names consistent regardless of which directory you run from
+
 services:
+
+  # ── Llama.cpp inference server ─────────────────────────────────────────────
   llama-server:
     image: ghcr.io/ggml-org/llama.cpp:server-cuda
     container_name: llama-cpp-server
     restart: unless-stopped
-
     ports:
-      - "8099:8099"          # access at http://localhost:8099
-
+      - "8099:8099" # access at http://localhost:8099
     volumes:
-      - /media/aza/shared/models:/models:ro   # mount model dir read-only
-
+      - /media/aza/shared/models:/models:ro # mount model dir read-only
     command: >
-      --model /models/gemma-4-12b-it-Q4_K_M.gguf
-      --host 0.0.0.0
-      --port 8099
-      --n-gpu-layers 99
-      --ctx-size 16384
-      --threads 4
-
+      --model /models/gemma-4-12b-it-Q4_K_M.gguf --host 0.0.0.0 --port 8099 --n-gpu-layers 99 --ctx-size 16384 --threads 4 --timeout 60
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
               count: all
-              capabilities: [gpu]
+              capabilities: [ gpu ]
+
+  # ── LibreChat front-end ─────────────────────────────────────────────────────
+  librechat:
+    image: ghcr.io/danny-avila/librechat:latest
+    container_name: librechat
+    restart: unless-stopped
+    ports:
+      - "3080:3080"
+    depends_on:
+      - mongodb
+      - meilisearch
+      - office-mcp
+    env_file:
+      - ./librechat/.env
+    volumes:
+      - ./librechat/librechat.yaml:/app/librechat.yaml:ro
+      - librechat_uploads:/app/uploads
+      - librechat_logs:/app/logs
+      - ./librechat/data:/app/data:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ── Office MCP tool server ──────────────────────────────────────────────────
+  office-mcp:
+    build: ./office-mcp
+    container_name: office-mcp
+    restart: unless-stopped
+    volumes:
+      - ./office-mcp:/app
+      - ./office-mcp/data:/app/data
+    environment:
+      - MCP_BASE_DIR=/app/data
+      - MCP_SQLITE_PATH=/app/data/office.db
+      - MCP_CHROMA_PATH=/app/data/chroma
+
+  # ── MongoDB ─────────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: librechat-mongodb
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+
+  # ── Meilisearch ─────────────────────────────────────────────────────────────
+  meilisearch:
+    image: getmeili/meilisearch:v1.7
+    container_name: librechat-meilisearch
+    restart: unless-stopped
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - meilisearch_data:/meili_data
+
+volumes:
+  mongodb_data:
+  meilisearch_data:
+  librechat_uploads:
+  librechat_logs:
