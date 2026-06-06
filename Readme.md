@@ -7,6 +7,12 @@ restart the docker
 ```
 docker compose down && docker compose up -d --build
 ```
+## Model used in this project
+
+```
+https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/tree/main
+```
+
 
 ## Setup mcp server
 ```

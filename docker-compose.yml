@@ -12,7 +12,7 @@ services:
     volumes:
       - /media/aza/shared/models:/models:ro # mount model dir read-only
     command: >
-      --model /models/gemma-4-12b-it-Q4_K_M.gguf --host 0.0.0.0 --port 8099 --n-gpu-layers 99 --ctx-size 16384 --threads 4 --timeout 60
+      --model /models/gemma-4-12b-it-qat-q4_0.gguf --mmproj /models/mmproj-gemma-4-12b-it-qat-q4_0.gguf --host 0.0.0.0 --port 8099 --n-gpu-layers 99 --ctx-size 16384 --threads 4 --timeout 60    
     deploy:
       resources:
         reservations:
@@ -60,7 +60,7 @@ services:
       - MCP_SQLITE_PATH=/app/data/office.db
       - MCP_CHROMA_PATH=/app/data/chroma
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost', 8097)); s.close()"]
+      test: [ "CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost', 8097)); s.close()" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -80,7 +80,7 @@ services:
     container_name: librechat-meilisearch
     restart: unless-stopped
     env_file:
-      - ./librechat/.env          # contains MEILI_MASTER_KEY (and other vars, ignored by meili)
+      - ./librechat/.env # contains MEILI_MASTER_KEY (and other vars, ignored by meili)
     environment:
       - MEILI_NO_ANALYTICS=true
     volumes:
