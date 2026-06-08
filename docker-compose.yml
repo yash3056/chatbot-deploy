@@ -12,7 +12,7 @@ services:
     volumes:
       - /media/aza/shared/models:/models:ro # mount model dir read-only
     command: >
-      --model /models/gemma-4-12b-it-qat-q4_0.gguf --mmproj /models/mmproj-gemma-4-12b-it-qat-q4_0.gguf --host 0.0.0.0 --port 8099 --n-gpu-layers 99 --ctx-size 16384 --threads 4 --timeout 60    
+      --model /models/gemma-4-12b-it-qat-q4_0.gguf --mmproj /models/mmproj-gemma-4-12b-it-qat-q4_0.gguf  --host 0.0.0.0 --port 8099 --n-gpu-layers 99 --ctx-size 32769 --threads 4 --timeout 60   --parallel 4 --cont-batching 
     deploy:
       resources:
         reservations:
