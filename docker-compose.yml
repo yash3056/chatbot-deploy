@@ -35,6 +35,8 @@ services:
         condition: service_started
       office-mcp:
         condition: service_healthy
+      code-sandbox:
+        condition: service_healthy
     env_file:
       - ./librechat/.env
     volumes:
@@ -47,14 +49,14 @@ services:
 
   # ── Office MCP tool server ──────────────────────────────────────────────────
   office-mcp:
-    build: ./office-mcp
+    build: ./mcp/office-mcp
     container_name: office-mcp
     restart: unless-stopped
     ports:
       - "8097:8097" # SSE endpoint — reachable at http://localhost:8097/sse from host
     volumes:
-      - ./office-mcp:/app
-      - ./office-mcp/data:/app/data
+      - ./mcp/office-mcp:/app
+      - ./mcp/office-mcp/data:/app/data
     environment:
       - MCP_BASE_DIR=/app/data
       - MCP_SQLITE_PATH=/app/data/office.db
@@ -65,6 +67,28 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+
+  # ── Code Sandbox MCP server ─────────────────────────────────────────────────
+  code-sandbox:
+    build: ./mcp/code-sandbox
+    container_name: code-sandbox
+    restart: unless-stopped
+    ports:
+      - "8098:8098" # SSE endpoint — reachable at http://localhost:8098/sse from host
+    volumes:
+      - code_sandbox_data:/app/sandbox_data
+    environment:
+      - SANDBOX_DIR=/app/sandbox_data
+      - SANDBOX_CPU_SECS=30
+      - SANDBOX_MAX_OUTPUT=262144   # 256 KB
+      - SANDBOX_MAX_JOBS=20
+      - SANDBOX_PORT=8098
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost', 8098)); s.close()" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   # ── MongoDB ─────────────────────────────────────────────────────────────────
   mongodb:
@@ -91,3 +115,4 @@ volumes:
   meilisearch_data:
   librechat_uploads:
   librechat_logs:
+  code_sandbox_data:

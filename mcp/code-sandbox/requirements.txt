@@ -1,0 +1,10 @@
+# MCP framework
+mcp[cli]>=1.2.0
+
+# Common packages pre-installed so the model can use them without pip-installing
+numpy
+pandas
+matplotlib
+scipy
+sympy
+requests

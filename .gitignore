@@ -2,4 +2,4 @@ librechat/.env
 office-mcp/venv/*
 office-mcp/__pycache__/*
 .gitignore
-office-mcp/data/*
+mcp/office-mcp/data/*
