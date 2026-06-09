@@ -399,15 +399,76 @@ def help_handler(request: Request) -> HTMLResponse:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    import asyncio
     import uvicorn
-    from starlette.applications import Starlette
-    from starlette.routing import Mount
+    from starlette.requests import Request
+    from starlette.middleware.cors import CORSMiddleware
 
-    sse_starlette = mcp.sse_app()
+    _sse  = mcp.sse_app()              # /sse + /messages/  (LibreChat)
+    _http = mcp.streamable_http_app() # /mcp               (llama-ui, Cursor, …)
 
-    combined = Starlette(routes=[
-        Route("/help", endpoint=help_handler),
-        Mount("/", app=sse_starlette),
-    ])
+    class MultiTransport:
+        """
+        Custom ASGI dispatcher:
+          /mcp*  → streamable-HTTP (llama-ui)   – prefix NOT stripped
+          /help  → HTML tool listing
+          else   → SSE (/sse, /messages/)        (LibreChat)
 
-    uvicorn.run(combined, host="0.0.0.0", port=PORT, log_level="info")
+        Both app lifespans are run concurrently so each transport's session
+        manager is properly initialised before requests arrive.
+        """
+
+        async def _lifespan(self, scope, receive, send):
+            """Fan startup/shutdown events to both apps via asyncio queues."""
+            startup = await receive()          # lifespan.startup
+
+            sse_q, http_q = asyncio.Queue(), asyncio.Queue()
+            await sse_q.put(startup)
+            await http_q.put(startup)
+
+            sse_ready  = asyncio.Event()
+            http_ready = asyncio.Event()
+
+            async def _run(app, q, ready_evt):
+                async def _recv():        return await q.get()
+                async def _send(msg):
+                    if "startup" in msg.get("type", ""):
+                        ready_evt.set()
+                await app(scope, _recv, _send)
+
+            sse_task  = asyncio.create_task(_run(_sse,  sse_q,  sse_ready))
+            http_task = asyncio.create_task(_run(_http, http_q, http_ready))
+
+            await asyncio.gather(sse_ready.wait(), http_ready.wait())
+            await send({"type": "lifespan.startup.complete"})
+
+            shutdown = await receive()         # lifespan.shutdown
+            await sse_q.put(shutdown)
+            await http_q.put(shutdown)
+            await asyncio.gather(sse_task, http_task, return_exceptions=True)
+            await send({"type": "lifespan.shutdown.complete"})
+
+        async def __call__(self, scope, receive, send):
+            if scope["type"] == "lifespan":
+                await self._lifespan(scope, receive, send)
+                return
+            path = scope.get("path", "/")
+            if path == "/help":
+                resp = help_handler(Request(scope, receive))
+                await resp(scope, receive, send)
+            elif path.startswith("/mcp"):
+                await _http(scope, receive, send)
+            else:
+                await _sse(scope, receive, send)
+
+    # CORS required for browser-based clients (llama-ui at :8099 → :8098)
+    # expose_headers lets JS read Mcp-Session-Id from the initialize response
+    # so it can include it in subsequent requests (without it → 400 Missing session ID)
+    app = CORSMiddleware(
+        MultiTransport(),
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["Mcp-Session-Id"],
+    )
+    uvicorn.run(app, host="0.0.0.0", port=PORT, log_level="info")
