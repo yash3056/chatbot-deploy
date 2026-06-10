@@ -1,7 +1,7 @@
 # MCP Servers
 
-Two plug-and-play MCP servers that any AI client can connect to.  
-Both servers expose **two transports** so they work with any client:
+Three plug-and-play MCP servers that any AI client can connect to.  
+All servers expose **two transports** so they work with any client:
 
 | Transport | Path | Use with |
 |-----------|------|----------|
@@ -78,9 +78,33 @@ Secure, resource-capped Python code execution.
 
 ---
 
+### 3. `docs-mcp` — Port `8096`
+
+PDF reading and DOCX read/write for the LLM.
+
+| Tool | Description |
+|------|-------------|
+| `pdf_read` | Extract text from a PDF (full doc or page range, with optional table extraction) |
+| `pdf_info` | Return metadata + structure info (title, author, page count, sizes, encryption) |
+| `docx_read` | Read a `.docx` file and return clean Markdown |
+| `docx_write` | Create or overwrite a `.docx` file from Markdown content |
+
+**Endpoints:**
+- Streamable HTTP → `http://localhost:8096/mcp`
+- SSE            → `http://localhost:8096/sse`
+- Help page      → `http://localhost:8096/help`
+
+**Environment variables:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DOCS_MCP_PORT` | `8096` | Port to listen on |
+
+---
+
 ## Quick Start
 
-### Option A — Run both servers (standalone, no LibreChat needed)
+### Option A — Run all servers (standalone, no LibreChat needed)
 
 ```bash
 cd mcp/
@@ -104,6 +128,7 @@ In **MCP Servers** settings, add:
 ```
 http://localhost:8097/mcp   ← office-mcp
 http://localhost:8098/mcp   ← code-sandbox
+http://localhost:8096/mcp   ← docs-mcp
 ```
 
 ### LibreChat (`librechat.yaml`)
@@ -116,6 +141,9 @@ mcpServers:
   code-sandbox:
     type: sse
     url: "http://code-sandbox:8098/sse"
+  docs-mcp:
+    type: sse
+    url: "http://docs-mcp:8096/sse"
 ```
 
 ### Claude Desktop (`claude_desktop_config.json`)
@@ -128,6 +156,9 @@ mcpServers:
     },
     "code-sandbox": {
       "url": "http://localhost:8098/mcp"
+    },
+    "docs-mcp": {
+      "url": "http://localhost:8096/mcp"
     }
   }
 }
@@ -138,8 +169,9 @@ mcpServers:
 ```json
 {
   "mcpServers": {
-    "office-mcp": { "url": "http://localhost:8097/mcp" },
-    "code-sandbox": { "url": "http://localhost:8098/mcp" }
+    "office-mcp":   { "url": "http://localhost:8097/mcp" },
+    "code-sandbox": { "url": "http://localhost:8098/mcp" },
+    "docs-mcp":     { "url": "http://localhost:8096/mcp" }
   }
 }
 ```
@@ -152,5 +184,6 @@ mcpServers:
 |--------|----------|
 | `office_mcp_data` | SQLite DB, ChromaDB index, files written by the LLM |
 | `code_sandbox_data` | Files written during Python code execution |
+| `docs_data` | Files written by `docx_write` |
 
 To reset all data: `docker compose down -v`

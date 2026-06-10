@@ -28,9 +28,16 @@ mcpServers:
     url: "http://code-sandbox:8098/sse"
     requiresOAuth: false
 
+  docs-mcp:
+    # PDF reader and DOCX read/write
+    type: sse
+    url: "http://docs-mcp:8096/sse"
+    requiresOAuth: false
+
 mcpSettings:
   # LibreChat blocks internal/private hostnames by default (security feature).
   # Explicitly allow both Docker service names so LibreChat can reach them.
   allowedAddresses:
     - "office-mcp:8097"
     - "code-sandbox:8098"
+    - "docs-mcp:8096"

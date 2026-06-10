@@ -18,12 +18,26 @@ docker compose down && docker compose up -d --build
 
 | Port | Service | URL | Description |
 |------|---------|-----|-------------|
-| **3080** | `librechat` | http://localhost:3080 | LibreChat web UI — the main chat front-end that users interact with. |
-| **8097** | `office-mcp` | http://localhost:8097/sse | Office MCP tool server — provides an SSE endpoint for document/office-related tools (file reading, ChromaDB search, SQLite). |
-| **8098** | `code-sandbox` | http://localhost:8098/sse | Code Sandbox MCP server — provides a secure, resource-limited Python execution environment via an SSE endpoint. |
-| **8099** | `llama-server` | http://localhost:8099 | Llama.cpp inference server (CUDA) — serves the Gemma-4 12B model over the OpenAI-compatible HTTP API. |
+| **3080** | `librechat` | http://localhost:3080 | LibreChat web UI — the main chat front-end. |
+| **8096** | `docs-mcp` | http://localhost:8096/sse | Docs MCP server — PDF reading and DOCX read/write (`/mcp`, `/sse`, `/help`). |
+| **8097** | `office-mcp` | http://localhost:8097/sse | Office MCP server — file system, SQLite, web fetch, calculator, ChromaDB (`/mcp`, `/sse`, `/help`). |
+| **8098** | `code-sandbox` | http://localhost:8098/sse | Code Sandbox MCP server — secure, resource-limited Python execution (`/mcp`, `/sse`, `/help`). |
+| **8099** | `llama-server` | http://localhost:8099 | Llama.cpp inference server (CUDA) — serves Gemma-4 12B over the OpenAI-compatible API. |
 
 > **Note:** MongoDB (`27017`) and Meilisearch (`7700`) are **not** exposed to the host; they are only reachable within the Docker network.
+
+---
+
+## MCP Servers
+
+All three MCP servers support **both** transports:
+
+| Transport | Path | Use with |
+|-----------|------|----------|
+| Streamable HTTP | `/mcp` | llama-ui, Cursor, Claude Desktop, VS Code |
+| SSE (legacy) | `/sse` | LibreChat, older MCP clients |
+
+See [`mcp/README.md`](mcp/README.md) for full tool listings and client connection guides.
 
 ---
 
@@ -38,22 +52,19 @@ https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/tree/main
 ## Setup MCP Server (local / manual)
 
 ```bash
-mkdir office-mcp && cd office-mcp
-python -m venv venv && source venv/bin/activate # Windows: .venv\Scripts\activate
+cd mcp/office-mcp
+python -m venv venv && source venv/bin/activate # Windows: venv\Scripts\activate
 pip install "mcp[cli]" requests chromadb playwright beautifulsoup4
 playwright install chromium # only if you want the browser tool
 mkdir data
 ```
 
-### How to Run the MCP Server Manually
+### How to Run an MCP Server Manually
 
 ```bash
-cd /**/*/llama-cpp/office-mcp
+cd mcp/office-mcp
 source venv/bin/activate
-
-# Option A — simplest, runs in stdio (what LibreChat needs):
 python server.py
-
-# Option B — dev inspector with hot reload:
-mcp dev server.py
 ```
+
+Available at `http://localhost:8097/sse` (SSE) and `http://localhost:8097/mcp` (Streamable HTTP).

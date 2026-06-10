@@ -14,14 +14,14 @@ services:
     ports:
       - "8097:8097"
     volumes:
-      - ./office-mcp:/app            # live-reload source during dev
-      - office_mcp_data:/app/data    # persistent DB + chroma + files
+      - ./office-mcp:/app # live-reload source during dev
+      - office_mcp_data:/app/data # persistent DB + chroma + files
     environment:
       - MCP_BASE_DIR=/app/data
       - MCP_SQLITE_PATH=/app/data/office.db
       - MCP_CHROMA_PATH=/app/data/chroma
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost', 8097)); s.close()"]
+      test: [ "CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost', 8097)); s.close()" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -43,11 +43,33 @@ services:
     environment:
       - SANDBOX_DIR=/app/sandbox_data
       - SANDBOX_CPU_SECS=30
-      - SANDBOX_MAX_OUTPUT=262144   # 256 KB
+      - SANDBOX_MAX_OUTPUT=262144 # 256 KB
       - SANDBOX_MAX_JOBS=20
       - SANDBOX_PORT=8098
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost', 8098)); s.close()"]
+      test: [ "CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost', 8098)); s.close()" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ── Docs MCP server ─────────────────────────────────────────────────────────
+  # Tools: pdf_read, pdf_info, docx_read, docx_write
+  # SSE  (LibreChat / stdio clients):  http://localhost:8096/sse
+  # HTTP (llama-ui / Cursor / etc.):   http://localhost:8096/mcp
+  # Help page:                         http://localhost:8096/help
+  docs-mcp:
+    build: ./docs-mcp
+    container_name: docs-mcp
+    restart: unless-stopped
+    ports:
+      - "8096:8096"
+    volumes:
+      - docs_data:/app/docs_data
+    environment:
+      - DOCS_MCP_PORT=8096
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost', 8096)); s.close()" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -56,3 +78,4 @@ services:
 volumes:
   office_mcp_data:
   code_sandbox_data:
+  docs_data:

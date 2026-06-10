@@ -1,0 +1,9 @@
+# MCP framework with SSE/HTTP transport support
+mcp[cli]>=1.2.0
+uvicorn>=0.29.0
+
+# Document processing
+pdfplumber>=0.10.0
+pypdf>=4.0.0
+mammoth>=1.6.0
+python-docx>=1.1.0
